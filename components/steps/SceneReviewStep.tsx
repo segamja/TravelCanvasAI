@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import SceneCard from "@/components/scene/SceneCard";
 import SceneEditor from "@/components/scene/SceneEditor";
 import Button from "@/components/ui/Button";
@@ -12,6 +12,8 @@ interface SceneReviewStepProps {
   scenes: TravelScene[];
   allProjectPhotoIds: string[];
   error?: string;
+  titleSuggestions?: string[];
+  onSelectTitle?: (title: string) => void;
   onChange: (scenes: TravelScene[]) => void;
   onNext: () => void;
 }
@@ -20,6 +22,8 @@ export default function SceneReviewStep({
   scenes,
   allProjectPhotoIds,
   error,
+  titleSuggestions = [],
+  onSelectTitle,
   onChange,
   onNext,
 }: SceneReviewStepProps) {
@@ -44,6 +48,26 @@ export default function SceneReviewStep({
       <p className="text-body-default text-on-surface-variant">
         여행에서 {scenes.length}개의 장면을 찾았어요. 제목이나 사진을 자유롭게 수정할 수 있어요.
       </p>
+      {titleSuggestions.length > 0 && (
+        <div className="rounded-xl border border-border-subdued bg-surface-stone/60 p-4">
+          <p className="mb-2.5 flex items-center gap-1.5 text-body-sm font-semibold text-on-surface-variant">
+            <Sparkles size={15} className="text-tertiary" />
+            AI 추천 제목 — 클릭하면 바로 적용돼요
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {titleSuggestions.map((title) => (
+              <button
+                key={title}
+                type="button"
+                onClick={() => onSelectTitle?.(title)}
+                className="rounded-full border border-border-contrast bg-white px-3.5 py-1.5 text-body-sm text-on-surface-variant hover:border-primary hover:text-primary"
+              >
+                {title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-4">
         {scenes.map((scene, index) => (
           <SceneCard

@@ -78,6 +78,18 @@ export function getImageDimensions(file: File): Promise<{ width: number; height:
   });
 }
 
+/** Current-month-based season, used to pick a fitting Unsplash background query. */
+export function getCurrentSeasonQuery(date: Date = new Date()): {
+  label: string;
+  query: string;
+} {
+  const month = date.getMonth() + 1;
+  if (month >= 3 && month <= 5) return { label: "봄", query: "spring travel scenery" };
+  if (month >= 6 && month <= 8) return { label: "여름", query: "summer travel scenery" };
+  if (month >= 9 && month <= 11) return { label: "가을", query: "autumn travel scenery" };
+  return { label: "겨울", query: "winter travel scenery" };
+}
+
 /** Maps technical errors to friendly, user-facing messages (spec §35). */
 export function toFriendlyErrorMessage(error: unknown): string {
   if (error instanceof Error) {

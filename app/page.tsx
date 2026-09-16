@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, UploadCloud } from "lucide-react";
+import SeasonalHeroBackground from "@/components/home/SeasonalHeroBackground";
 import TravelList from "@/components/travel/TravelList";
 import { listProjects, deleteProject } from "@/storage/travelStorage";
 import type { TravelProject } from "@/types/travel";
@@ -23,8 +24,9 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
-      <section className="mb-14 grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-7">
+      <section className="relative mb-14 grid grid-cols-1 items-center gap-8 overflow-hidden rounded-xl p-5 lg:grid-cols-12 lg:p-8">
+        <SeasonalHeroBackground />
+        <div className="relative lg:col-span-7">
           <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary-subtle px-3 py-1 text-caption-meta font-medium text-primary">
             <Sparkles size={13} />
             Local-First &amp; Zero Input AI Curation

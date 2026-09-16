@@ -72,6 +72,7 @@ export default function TravelProjectPage() {
   const [storyError, setStoryError] = useState<string>();
   const [sceneError, setSceneError] = useState<string>();
   const [editingStory, setEditingStory] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
 
   const reload = useCallback(() => {
     setProject(getProject(projectId) ?? null);
@@ -222,6 +223,7 @@ export default function TravelProjectPage() {
       const scenesJson = await scenesRes.json();
       if (!scenesRes.ok) throw new Error(scenesJson.error ?? "장면 구성에 실패했습니다.");
 
+      const photoById = new Map(updatedPhotos.map((p) => [p.id, p]));
       const scenes: TravelScene[] = (scenesJson.scenes ?? []).map(
         (raw: {
           title: string;
@@ -231,17 +233,25 @@ export default function TravelProjectPage() {
           startTime?: string;
           endTime?: string;
           confidence?: number;
-        }) => ({
-          id: generateId("scene"),
-          projectId: current.id,
-          title: raw.title,
-          summary: raw.summary,
-          photoIds: raw.photoIds,
-          location: raw.location ?? undefined,
-          startTime: raw.startTime ?? undefined,
-          endTime: raw.endTime ?? undefined,
-          confidence: raw.confidence,
-        }),
+        }) => {
+          // Real EXIF dates are ground truth; prefer them over the AI's own
+          // startTime/endTime guess, which it may omit or get wrong.
+          const capturedDates = raw.photoIds
+            .map((id) => photoById.get(id)?.capturedAt)
+            .filter((d): d is string => !!d)
+            .sort();
+          return {
+            id: generateId("scene"),
+            projectId: current.id,
+            title: raw.title,
+            summary: raw.summary,
+            photoIds: raw.photoIds,
+            location: raw.location ?? undefined,
+            startTime: capturedDates[0] ?? raw.startTime ?? undefined,
+            endTime: capturedDates[capturedDates.length - 1] ?? raw.endTime ?? undefined,
+            confidence: raw.confidence,
+          };
+        },
       );
 
       const rawQuestions: { sceneIndex: number; question: string; options: string[] }[] =
@@ -259,9 +269,47 @@ export default function TravelProjectPage() {
       current = saveScenes(current.id, scenes);
       current = saveMemoryQuestions(current.id, questions);
       setProject(current);
+      void fetchTitleSuggestions(current, updatedPhotos);
     } catch (error) {
       setAnalysisError(toFriendlyErrorMessage(error));
     }
+  }
+
+  /** Best-effort AI title suggestions (spec §7); failures are silent since the title stays editable regardless. */
+  async function fetchTitleSuggestions(proj: TravelProject, photos: Photo[]) {
+    const locations = Array.from(
+      new Set(
+        [...proj.scenes.map((s) => s.location), ...photos.map((p) => p.analysis?.location)].filter(
+          (v): v is string => !!v,
+        ),
+      ),
+    );
+    const moods = Array.from(
+      new Set(photos.map((p) => p.analysis?.mood).filter((v): v is string => !!v)),
+    );
+    try {
+      const res = await fetch("/api/suggest-title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locations,
+          moods,
+          startDate: proj.startDate,
+          endDate: proj.endDate,
+        }),
+      });
+      if (!res.ok) return;
+      const json: { titles?: string[] } = await res.json();
+      setTitleSuggestions(json.titles ?? []);
+    } catch {
+      // Supplementary only; the user can always type their own title.
+    }
+  }
+
+  function handleApplyTitleSuggestion(title: string) {
+    if (!project) return;
+    setProject(updateProject(project.id, { title }));
+    setTitleSuggestions([]);
   }
 
   // ---- Scene review ---------------------------------------------------
@@ -433,6 +481,8 @@ export default function TravelProjectPage() {
           scenes={project.scenes}
           allProjectPhotoIds={project.photoIds}
           error={sceneError}
+          titleSuggestions={titleSuggestions}
+          onSelectTitle={handleApplyTitleSuggestion}
           onChange={handleSceneChange}
           onNext={handleSceneReviewNext}
         />

@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDown, ChevronUp, MapPin, Pencil, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, MapPin, Pencil, Trash2 } from "lucide-react";
 import PhotoCard from "@/components/photo/PhotoCard";
 import { usePhotoUrls } from "@/lib/hooks/usePhotoUrls";
+import { formatDateRange } from "@/lib/utils";
 import type { TravelScene } from "@/types/scene";
 
 interface SceneCardProps {
@@ -25,6 +26,7 @@ export default function SceneCard({
   onMoveDown,
 }: SceneCardProps) {
   const urls = usePhotoUrls(scene.photoIds.slice(0, 8));
+  const dateLabel = formatDateRange(scene.startTime, scene.endTime);
 
   return (
     <div className="rounded-xl border border-border-subdued bg-surface-card p-5 shadow-[var(--shadow-keepsake)]">
@@ -32,6 +34,11 @@ export default function SceneCard({
         <div>
           <div className="mb-1 flex items-center gap-2 text-caption-meta font-medium text-primary">
             <span>Scene {String(index + 1).padStart(2, "0")}</span>
+            {dateLabel && (
+              <span className="flex items-center gap-1 text-text-tertiary">
+                <CalendarDays size={12} /> {dateLabel}
+              </span>
+            )}
             {scene.location && (
               <span className="flex items-center gap-1 text-text-tertiary">
                 <MapPin size={12} /> {scene.location}

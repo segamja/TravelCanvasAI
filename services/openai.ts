@@ -16,6 +16,26 @@ function getClient(): OpenAI {
   return client;
 }
 
+/** Retries on OpenAI 429s, honoring the API's retry-after hint instead of failing the whole analysis. */
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 5): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isRateLimited = error instanceof OpenAI.APIError && error.status === 429;
+      if (!isRateLimited || attempt >= maxAttempts) throw error;
+      const retryAfterMs = Number(error.headers?.get("retry-after-ms"));
+      const retryAfterSec = Number(error.headers?.get("retry-after"));
+      const waitMs = Number.isFinite(retryAfterMs) && retryAfterMs > 0
+        ? retryAfterMs
+        : Number.isFinite(retryAfterSec) && retryAfterSec > 0
+          ? retryAfterSec * 1000
+          : 1000 * attempt;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+  }
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const result: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
@@ -100,17 +120,19 @@ export async function analyzePhotos(
         type: "text",
         text: `photoId: ${photo.id}${knownFacts.length ? "\n" + knownFacts.join("\n") : ""}`,
       });
-      content.push({ type: "image_url", image_url: { url: photo.dataUrl } });
+      content.push({ type: "image_url", image_url: { url: photo.dataUrl, detail: "low" } });
     }
 
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: PHOTO_ANALYSIS_SYSTEM_PROMPT },
-        { role: "user", content },
-      ],
-    });
+    const completion = await withRetry(() =>
+      openai.chat.completions.create({
+        model: MODEL,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: PHOTO_ANALYSIS_SYSTEM_PROMPT },
+          { role: "user", content },
+        ],
+      }),
+    );
 
     const raw = completion.choices[0]?.message?.content;
     if (!raw) throw new Error("AI로부터 응답을 받지 못했습니다.");
@@ -184,14 +206,16 @@ export async function generateScenes(
   photos: SceneGenerationPhotoInput[],
 ): Promise<{ scenes: RawTravelScene[]; memoryQuestions: RawMemoryQuestion[] }> {
   const openai = getClient();
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: SCENE_SYSTEM_PROMPT },
-      { role: "user", content: JSON.stringify({ photos }) },
-    ],
-  });
+  const completion = await withRetry(() =>
+    openai.chat.completions.create({
+      model: MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SCENE_SYSTEM_PROMPT },
+        { role: "user", content: JSON.stringify({ photos }) },
+      ],
+    }),
+  );
 
   const raw = completion.choices[0]?.message?.content;
   if (!raw) throw new Error("AI로부터 응답을 받지 못했습니다.");
@@ -248,14 +272,16 @@ export async function generateStory(input: {
   scenes: StoryGenerationSceneInput[];
 }): Promise<RawTravelStory> {
   const openai = getClient();
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: STORY_SYSTEM_PROMPT },
-      { role: "user", content: JSON.stringify(input) },
-    ],
-  });
+  const completion = await withRetry(() =>
+    openai.chat.completions.create({
+      model: MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: STORY_SYSTEM_PROMPT },
+        { role: "user", content: JSON.stringify(input) },
+      ],
+    }),
+  );
 
   const raw = completion.choices[0]?.message?.content;
   if (!raw) throw new Error("AI로부터 응답을 받지 못했습니다.");
@@ -273,18 +299,20 @@ export async function suggestTravelTitles(input: {
   endDate?: string;
 }): Promise<string[]> {
   const openai = getClient();
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          '여행 사진 분석 결과를 참고해 감성적인 여행 제목 후보 3개를 한국어로 제안하세요. 과장되지 않게, 짧고 담백하게. JSON: {"titles": ["string","string","string"]}',
-      },
-      { role: "user", content: JSON.stringify(input) },
-    ],
-  });
+  const completion = await withRetry(() =>
+    openai.chat.completions.create({
+      model: MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            '여행 사진 분석 결과를 참고해 감성적인 여행 제목 후보 3개를 한국어로 제안하세요. 과장되지 않게, 짧고 담백하게. JSON: {"titles": ["string","string","string"]}',
+        },
+        { role: "user", content: JSON.stringify(input) },
+      ],
+    }),
+  );
   const raw = completion.choices[0]?.message?.content;
   if (!raw) return [];
   try {
