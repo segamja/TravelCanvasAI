@@ -5,7 +5,7 @@
 ## 기술 스택
 
 - **Frontend**: Next.js (App Router) + TypeScript, Tailwind CSS v4, Lucide React
-- **AI**: OpenAI API (Vision + Structured Output + Text Generation), 3단계 파이프라인(사진 분석 → Scene 구성 → Story 생성)으로 서버 Route Handler에서만 호출
+- **AI**: OpenAI API (Vision + Structured Output + Text Generation), 3단계 파이프라인(사진 분석 → Scene 구성 → Story 생성)으로 서버 Route Handler에서만 호출. 스토리 완성 후 AI Story Card는 같은 서버 경로에서 카드 구성만 판단합니다.
 - **외부 이미지**: Unsplash API (보조 이미지 전용)
 - **저장소**: 서버 DB 없음 — 사진은 브라우저 IndexedDB, 프로젝트/Scene/Story 메타데이터는 LocalStorage
 
@@ -26,7 +26,11 @@ OPENAI_API_KEY=
 UNSPLASH_ACCESS_KEY=
 ```
 
-두 키가 없어도 앱은 실행되며 사진 업로드/저장까지는 정상 동작합니다. AI 분석·Scene 구성·Story 생성·Unsplash 검색을 호출하는 시점에만 키가 필요하며, 키가 없으면 사용자에게 안내 메시지가 표시됩니다.
+두 키가 없어도 앱은 실행되며 사진 업로드/저장까지는 정상 동작합니다. AI 분석·Scene 구성·Story 생성·Unsplash 검색을 호출하는 시점에만 키가 필요하며, 키가 없으면 사용자에게 안내 메시지가 표시됩니다. Story Card는 키가 없으면 이미 만든 스토리와 사진 정보만으로 카드를 구성합니다.
+
+## AI Story Card
+
+스토리 화면의 **AI Story Card 만들기**는 여행 제목, 대표 사진, 핵심 문장, 날짜·장소를 한 장의 카드로 만듭니다. 날짜와 장소는 프로젝트와 사진에 있는 값만 쓰고, 결과는 이 브라우저에 저장하거나 PNG로 받을 수 있습니다. 앨범, PDF, 계정, 서버 DB는 이 기능에 포함하지 않습니다.
 
 ## 스크립트
 

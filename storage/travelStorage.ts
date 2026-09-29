@@ -4,6 +4,7 @@ import { generateId } from "@/lib/utils";
 import type { TravelProject, ProjectStatus } from "@/types/travel";
 import type { TravelScene, MemoryQuestion } from "@/types/scene";
 import type { TravelStory } from "@/types/story";
+import type { StoryCard } from "@/types/storyCard";
 
 const INDEX_KEY = "projects:index";
 const projectKey = (id: string) => `project:${id}`;
@@ -88,6 +89,10 @@ export function saveMemoryQuestions(id: string, memoryQuestions: MemoryQuestion[
 
 export function saveStory(id: string, story: TravelStory): TravelProject {
   return updateProject(id, { story, status: "completed" });
+}
+
+export function saveStoryCard(id: string, storyCard: StoryCard): TravelProject {
+  return updateProject(id, { storyCard });
 }
 
 export async function deleteProject(id: string): Promise<void> {

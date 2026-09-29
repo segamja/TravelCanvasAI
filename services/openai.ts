@@ -321,3 +321,53 @@ export async function suggestTravelTitles(input: {
     return [];
   }
 }
+
+// ---------------------------------------------------------------------------
+// AI Story Card — design decisions only. The client keeps dates/places grounded.
+// ---------------------------------------------------------------------------
+
+const STORY_CARD_SYSTEM_PROMPT = `당신은 여행 스토리를 한 장의 시각 카드로 해석하는 에디터입니다.
+입력 JSON에 있는 사실만 사용하세요. 사진, EXIF, 장소 목록, 스토리 본문에 없는 사건·장소·날짜·인물을 만들지 마세요.
+
+판단할 것:
+1. heroPhotoId — 입력 photos의 id 중, 여행을 가장 잘 보여주는 한 장
+2. story — 스토리 본문을 2~4문장으로 압축. 새로운 사실을 추가하지 마세요.
+3. place — knownPlaces에 있는 이름만. 없으면 빈 문자열.
+4. keyMoment — 스토리에 이미 있는 핵심 순간 한 문장.
+5. keywords — 입력 태그나 본문에 실제로 있는 단어 최대 3개.
+6. mood — 입력 mood를 바탕으로 한 짧은 분위기.
+7. layout — editorial | cinematic | journal | minimal
+   - cinematic: 밤, 도시, 야경처럼 사진이 화면을 지배해야 할 때
+   - journal: 골목, 카페, 일상에 가까운 기록
+   - minimal: 바다, 여백, 고요한 풍경
+   - editorial: 그 외의 기본
+8. palette — warm | cool | earth | ink
+
+반드시 아래 JSON만 출력합니다.
+{
+  "heroPhotoId": "string",
+  "story": "string",
+  "place": "string",
+  "keyMoment": "string",
+  "keywords": ["string"],
+  "mood": "string",
+  "layout": "editorial",
+  "palette": "ink"
+}`;
+
+export async function composeStoryCard(facts: unknown): Promise<Record<string, unknown>> {
+  const openai = getClient();
+  const completion = await withRetry(() =>
+    openai.chat.completions.create({
+      model: MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: STORY_CARD_SYSTEM_PROMPT },
+        { role: "user", content: JSON.stringify(facts) },
+      ],
+    }),
+  );
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) throw new Error("AI로부터 응답을 받지 못했습니다.");
+  return parseJsonObject<Record<string, unknown>>(raw);
+}

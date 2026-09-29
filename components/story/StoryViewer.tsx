@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, MapPin, Pencil } from "lucide-react";
+import { Camera, MapPin, Pencil, Sparkles } from "lucide-react";
 import { usePhotoUrls } from "@/lib/hooks/usePhotoUrls";
 import { formatDateRange } from "@/lib/utils";
 import type { TravelProject } from "@/types/travel";
@@ -8,9 +8,10 @@ import type { TravelProject } from "@/types/travel";
 interface StoryViewerProps {
   project: TravelProject;
   onEdit: () => void;
+  onOpenStoryCard: () => void;
 }
 
-export default function StoryViewer({ project, onEdit }: StoryViewerProps) {
+export default function StoryViewer({ project, onEdit, onOpenStoryCard }: StoryViewerProps) {
   const story = project.story;
   const allPhotoIds = project.photoIds;
   const urls = usePhotoUrls(allPhotoIds);
@@ -55,7 +56,15 @@ export default function StoryViewer({ project, onEdit }: StoryViewerProps) {
         </div>
       </section>
 
-      <div className="mx-auto mb-6 flex max-w-2xl justify-end px-1">
+      <div className="mx-auto mb-6 flex max-w-2xl flex-wrap items-center justify-end gap-2 px-1">
+        <button
+          type="button"
+          onClick={onOpenStoryCard}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-body-sm font-semibold text-on-primary"
+        >
+          <Sparkles size={15} />
+          {project.storyCard ? "AI Story Card 보기" : "AI Story Card 만들기"}
+        </button>
         <button
           type="button"
           onClick={onEdit}

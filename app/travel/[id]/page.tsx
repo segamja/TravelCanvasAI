@@ -10,6 +10,7 @@ import SceneReviewStep from "@/components/steps/SceneReviewStep";
 import MemoryQuestionStep from "@/components/steps/MemoryQuestionStep";
 import StoryViewer from "@/components/story/StoryViewer";
 import StoryEditor from "@/components/story/StoryEditor";
+import StoryCardGenerator from "@/components/story-card/StoryCardGenerator";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import {
   getProject,
@@ -72,6 +73,7 @@ export default function TravelProjectPage() {
   const [storyError, setStoryError] = useState<string>();
   const [sceneError, setSceneError] = useState<string>();
   const [editingStory, setEditingStory] = useState(false);
+  const [storyCardOpen, setStoryCardOpen] = useState(false);
   const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
 
   const reload = useCallback(() => {
@@ -513,7 +515,13 @@ export default function TravelProjectPage() {
       )}
 
       {project.status === "completed" && project.story && (
-        editingStory ? (
+        storyCardOpen ? (
+          <StoryCardGenerator
+            project={project}
+            onBack={() => setStoryCardOpen(false)}
+            onSaved={setProject}
+          />
+        ) : editingStory ? (
           <StoryEditor
             story={project.story}
             allPhotoIds={project.photoIds}
@@ -527,7 +535,11 @@ export default function TravelProjectPage() {
             onDeleteProject={handleDeleteProject}
           />
         ) : (
-          <StoryViewer project={project} onEdit={() => setEditingStory(true)} />
+          <StoryViewer
+            project={project}
+            onEdit={() => setEditingStory(true)}
+            onOpenStoryCard={() => setStoryCardOpen(true)}
+          />
         )
       )}
     </main>

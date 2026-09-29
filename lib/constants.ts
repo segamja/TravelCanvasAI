@@ -42,3 +42,9 @@ export const STORY_PROGRESS_STEPS = [
   "여행의 흐름을 구성하고 있습니다",
   "이야기를 다듬고 있습니다",
 ] as const;
+
+export const STORY_CARD_PROGRESS_STEPS = [
+  "여행 이야기에서 핵심을 고르고 있습니다",
+  "대표 사진을 고르고 있습니다",
+  "카드의 분위기와 배치를 정하고 있습니다",
+] as const;
