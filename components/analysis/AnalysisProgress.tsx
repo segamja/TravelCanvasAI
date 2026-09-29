@@ -7,18 +7,27 @@ interface AnalysisProgressProps {
   headline: string;
   steps: readonly string[];
   currentStepIndex: number;
+  /** Live count for the active step, such as "12 / 42장 분석 중". */
+  detail?: string;
 }
 
 export default function AnalysisProgress({
   headline,
   steps,
   currentStepIndex,
+  detail,
 }: AnalysisProgressProps) {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center py-20 text-center">
-      <h2 className="mb-8 text-headline-page-mobile font-display font-semibold text-charcoal">
+      <h2
+        className={cn(
+          "text-headline-page-mobile font-display font-semibold text-charcoal",
+          detail ? "mb-3" : "mb-8",
+        )}
+      >
         {headline}
       </h2>
+      {detail && <p className="mb-8 text-body-default font-medium text-primary">{detail}</p>}
       <ul className="w-full space-y-3 text-left">
         {steps.map((step, index) => {
           const done = index < currentStepIndex;

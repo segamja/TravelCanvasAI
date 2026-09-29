@@ -50,15 +50,21 @@ function analysisRequestBatches(photos: AnalyzePhotoInput[]): AnalyzePhotoInput[
 /** Sends already-resized analysis JPEGs in several requests. The server still calls OpenAI 8 at a time. */
 export async function requestPhotoAnalysis(
   photos: AnalyzePhotoInput[],
+  onProgress?: (done: number, total: number, pending: number) => void,
 ): Promise<Record<string, PhotoAnalysis>> {
   const analyses: Record<string, PhotoAnalysis> = {};
+  const total = photos.length;
+  let done = 0;
   for (const batch of analysisRequestBatches(photos)) {
+    onProgress?.(done, total, batch.length);
     const json = await postJson<{ analyses?: Record<string, PhotoAnalysis> }>(
       "/api/analyze",
       { photos: batch },
       "사진 분석에 실패했습니다.",
     );
     Object.assign(analyses, json.analyses ?? {});
+    done += batch.length;
+    onProgress?.(done, total, 0);
   }
   return analyses;
 }

@@ -1,6 +1,6 @@
 # TravelCanvasAI
 
-여행 사진을 업로드하면 AI가 사진 속 여행을 이해하고, 흩어진 기억을 하나의 여행 이야기로 만들어 주는 웹앱입니다. 앱 버전은 **0.5.0**입니다. 기획과 현재 구현의 기준은 [`docs/TravelCanvasAI_프로젝트_개발명세서_V1.1.md`](docs/TravelCanvasAI_프로젝트_개발명세서_V1.1.md)이고, 한 장 카드의 기준은 [`docs/AI Story Card.md`](docs/AI%20Story%20Card.md)입니다.
+여행 사진을 업로드하면 AI가 사진 속 여행을 이해하고, 흩어진 기억을 하나의 여행 이야기로 만들어 주는 웹앱입니다. 앱 버전은 **0.5.1**입니다. 기획과 현재 구현의 기준은 [`docs/TravelCanvasAI_프로젝트_개발명세서_V1.1.md`](docs/TravelCanvasAI_프로젝트_개발명세서_V1.1.md)이고, 한 장 카드의 기준은 [`docs/AI Story Card.md`](docs/AI%20Story%20Card.md)입니다.
 
 ## 기술 스택
 

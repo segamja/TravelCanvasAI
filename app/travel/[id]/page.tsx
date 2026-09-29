@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import TravelHeader from "@/components/travel/TravelHeader";
@@ -77,6 +77,7 @@ export default function TravelProjectPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
   const [analysisStepIndex, setAnalysisStepIndex] = useState(0);
+  const [analysisDetail, setAnalysisDetail] = useState<string>();
   const [analysisError, setAnalysisError] = useState<string>();
   const [storyStepIndex, setStoryStepIndex] = useState(0);
   const [storyError, setStoryError] = useState<string>();
@@ -85,6 +86,9 @@ export default function TravelProjectPage() {
   const [storyCardOpen, setStoryCardOpen] = useState(false);
   const [albumOpen, setAlbumOpen] = useState(false);
   const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
+  const analysisStartedHere = useRef(false);
+  const analysisResumed = useRef(false);
+  const analysisInFlight = useRef(false);
 
   const reload = useCallback(() => {
     setProject(getProject(projectId) ?? null);
@@ -95,6 +99,17 @@ export default function TravelProjectPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (!project || project.status !== "analyzing") return;
+    if (analysisStartedHere.current || analysisResumed.current) return;
+    const timer = window.setTimeout(() => {
+      if (analysisStartedHere.current || analysisResumed.current) return;
+      analysisResumed.current = true;
+      void handleStartAnalysis();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [project]);
 
   // ---- Photo upload -------------------------------------------------------
 
@@ -173,32 +188,52 @@ export default function TravelProjectPage() {
   // ---- Analysis pipeline (Step 1: photo analysis, Step 2: scenes) ---------
 
   async function handleStartAnalysis() {
-    if (!project) return;
+    if (!project || analysisInFlight.current) return;
+    analysisInFlight.current = true;
+    analysisStartedHere.current = true;
     setAnalysisError(undefined);
     setAnalysisStepIndex(0);
+    setAnalysisDetail(undefined);
     let current = updateProject(project.id, { status: "analyzing" });
     setProject(current);
 
     try {
-      const inputs = await Promise.all(
-        current.photoIds.map(async (id) => {
-          const meta = getPhotoMeta(id);
-          const dataUrl = await getPhotoAnalysisDataUrl(id);
-          if (!dataUrl) throw new Error("사진을 불러오지 못했습니다.");
-          return {
-            id,
-            dataUrl,
-            knownCapturedAt: meta?.capturedAt,
-            knownLocationHint:
-              meta?.latitude != null && meta?.longitude != null
-                ? `${meta.latitude}, ${meta.longitude}`
-                : undefined,
-          };
-        }),
-      );
+      const total = current.photoIds.length;
+      const inputs: {
+        id: string;
+        dataUrl: string;
+        knownCapturedAt?: string;
+        knownLocationHint?: string;
+      }[] = [];
+      for (let index = 0; index < current.photoIds.length; index++) {
+        const id = current.photoIds[index];
+        setAnalysisDetail(`${index + 1} / ${total}장 준비 중`);
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        const meta = getPhotoMeta(id);
+        const dataUrl = await getPhotoAnalysisDataUrl(id);
+        if (!dataUrl) throw new Error("사진을 불러오지 못했습니다.");
+        inputs.push({
+          id,
+          dataUrl,
+          knownCapturedAt: meta?.capturedAt,
+          knownLocationHint:
+            meta?.latitude != null && meta?.longitude != null
+              ? `${meta.latitude}, ${meta.longitude}`
+              : undefined,
+        });
+      }
 
       setAnalysisStepIndex(1);
-      const analyses = await requestPhotoAnalysis(inputs);
+      const analyses = await requestPhotoAnalysis(inputs, (done, count, pending) => {
+        if (pending > 0) {
+          const from = done + 1;
+          const to = Math.min(done + pending, count);
+          const range = from === to ? `${from}` : `${from}–${to}`;
+          setAnalysisDetail(`${range} / ${count}장 분석 중`);
+          return;
+        }
+        setAnalysisDetail(`${done} / ${count}장 분석함`);
+      });
 
       const updatedPhotos: Photo[] = [];
       for (const id of current.photoIds) {
@@ -210,6 +245,7 @@ export default function TravelProjectPage() {
       }
 
       setAnalysisStepIndex(2);
+      setAnalysisDetail("촬영 순서대로 묶는 중");
       const sceneInputs = updatedPhotos
         .filter((p) => p.analysis)
         .map((p) => ({
@@ -224,6 +260,7 @@ export default function TravelProjectPage() {
         }));
 
       setAnalysisStepIndex(3);
+      setAnalysisDetail("장면을 만들고 있습니다");
       const scenesJson = await requestScenes(sceneInputs);
 
       const photoById = new Map(updatedPhotos.map((p) => [p.id, p]));
@@ -272,6 +309,8 @@ export default function TravelProjectPage() {
       void fetchTitleSuggestions(current, updatedPhotos);
     } catch (error) {
       setAnalysisError(toFriendlyErrorMessage(error));
+    } finally {
+      analysisInFlight.current = false;
     }
   }
 
@@ -452,6 +491,7 @@ export default function TravelProjectPage() {
           )}
           <AnalysisProgress
             headline="여행을 살펴보고 있어요"
+            detail={analysisDetail}
             steps={ANALYSIS_PROGRESS_STEPS}
             currentStepIndex={analysisStepIndex}
           />

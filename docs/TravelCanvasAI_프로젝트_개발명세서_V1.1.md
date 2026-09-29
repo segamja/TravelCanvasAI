@@ -1,6 +1,6 @@
 # TravelCanvasAI 웹앱 프로젝트 개발 명세서
 
--   문서 버전: V1.1 (앱 구현 반영: v0.5.0)
+-   문서 버전: V1.1 (앱 구현 반영: v0.5.1)
 -   프로젝트 유형: AI 기반 여행 사진 스토리텔링 웹앱
 -   개발 범위: 8시간 수업용 MVP + 스토리 이후의 Story Card·포토북
 -   핵심 방향: Local-first + Serverless + AI Storytelling
