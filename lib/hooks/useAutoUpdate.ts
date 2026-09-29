@@ -19,12 +19,24 @@ export function useAutoUpdate() {
 
     async function checkForUpdate() {
       try {
-        const res = await fetch("/api/version", { cache: "no-store" });
+        // Omit cookies so Vercel skew protection does not pin this request
+        // to the deployment that originally served the page.
+        const res = await fetch(`/api/version?t=${Date.now()}`, {
+          cache: "no-store",
+          credentials: "omit",
+        });
         if (!res.ok) return;
         const data: { version?: string } = await res.json();
-        if (!cancelled && data.version && data.version !== builtVersion) {
-          window.location.reload();
-        }
+        const latest = data.version;
+        if (cancelled || !latest || latest === builtVersion) return;
+
+        const reloadKey = `travelcanvasai:reloaded-for:${latest}`;
+        if (sessionStorage.getItem(reloadKey) === "1") return;
+        sessionStorage.setItem(reloadKey, "1");
+
+        const url = new URL(window.location.href);
+        url.searchParams.set("_v", latest);
+        window.location.replace(url.toString());
       } catch {
         // Offline or the server is briefly unreachable; just try again later.
       }

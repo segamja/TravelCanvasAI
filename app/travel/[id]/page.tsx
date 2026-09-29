@@ -11,6 +11,7 @@ import MemoryQuestionStep from "@/components/steps/MemoryQuestionStep";
 import StoryViewer from "@/components/story/StoryViewer";
 import StoryEditor from "@/components/story/StoryEditor";
 import StoryCardGenerator from "@/components/story-card/StoryCardGenerator";
+import AlbumStudio from "@/components/album/AlbumStudio";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import {
   getProject,
@@ -28,6 +29,13 @@ import {
   getPhotoAnalysisDataUrl,
 } from "@/storage/photoStorage";
 import { extractExif } from "@/lib/exif";
+import {
+  dateRangeFromPhotoIds,
+  effectiveCapturedAt,
+  sortPhotoIds,
+  toDateInputValue,
+  capturedAtFromFileName,
+} from "@/lib/photoDates";
 import {
   generateId,
   getImageDimensions,
@@ -74,6 +82,7 @@ export default function TravelProjectPage() {
   const [sceneError, setSceneError] = useState<string>();
   const [editingStory, setEditingStory] = useState(false);
   const [storyCardOpen, setStoryCardOpen] = useState(false);
+  const [albumOpen, setAlbumOpen] = useState(false);
   const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
 
   const reload = useCallback(() => {
@@ -118,7 +127,7 @@ export default function TravelProjectPage() {
           mimeType: "image/jpeg",
           width: dims.width,
           height: dims.height,
-          capturedAt: exif.capturedAt,
+          capturedAt: exif.capturedAt ?? capturedAtFromFileName(file.name),
           latitude: exif.latitude,
           longitude: exif.longitude,
         };
@@ -130,9 +139,13 @@ export default function TravelProjectPage() {
     }
 
     if (newIds.length > 0) {
+      const photoIds = sortPhotoIds([...project.photoIds, ...newIds]);
+      const range = dateRangeFromPhotoIds(photoIds);
       const updated = updateProject(project.id, {
-        photoIds: [...project.photoIds, ...newIds],
-        coverPhotoId: project.coverPhotoId ?? newIds[0],
+        photoIds,
+        coverPhotoId: project.coverPhotoId ?? photoIds[0],
+        startDate: project.startDate || (range.start ? toDateInputValue(range.start) : undefined),
+        endDate: project.endDate || (range.end ? toDateInputValue(range.end) : undefined),
         status: "photos-uploaded",
       });
       setProject(updated);
@@ -226,7 +239,7 @@ export default function TravelProjectPage() {
       if (!scenesRes.ok) throw new Error(scenesJson.error ?? "장면 구성에 실패했습니다.");
 
       const photoById = new Map(updatedPhotos.map((p) => [p.id, p]));
-      const scenes: TravelScene[] = (scenesJson.scenes ?? []).map(
+      const scenesInModelOrder: TravelScene[] = (scenesJson.scenes ?? []).map(
         (raw: {
           title: string;
           summary: string;
@@ -238,32 +251,38 @@ export default function TravelProjectPage() {
         }) => {
           // Real EXIF dates are ground truth; prefer them over the AI's own
           // startTime/endTime guess, which it may omit or get wrong.
-          const capturedDates = raw.photoIds
-            .map((id) => photoById.get(id)?.capturedAt)
-            .filter((d): d is string => !!d)
-            .sort();
+          const photoIds = [...raw.photoIds].sort((a, b) => {
+            const left = effectiveCapturedAt(photoById.get(a)) ?? "";
+            const right = effectiveCapturedAt(photoById.get(b)) ?? "";
+            return left.localeCompare(right);
+          });
+          const capturedDates = photoIds
+            .map((id) => effectiveCapturedAt(photoById.get(id)))
+            .filter((d): d is string => !!d);
           return {
             id: generateId("scene"),
             projectId: current.id,
             title: raw.title,
             summary: raw.summary,
-            photoIds: raw.photoIds,
+            photoIds,
             location: raw.location ?? undefined,
             startTime: capturedDates[0] ?? raw.startTime ?? undefined,
             endTime: capturedDates[capturedDates.length - 1] ?? raw.endTime ?? undefined,
             confidence: raw.confidence,
           };
-        },
+        });
+      const scenes = [...scenesInModelOrder].sort((a, b) =>
+        (a.startTime ?? "").localeCompare(b.startTime ?? ""),
       );
 
       const rawQuestions: { sceneIndex: number; question: string; options: string[] }[] =
         scenesJson.memoryQuestions ?? [];
       const questions: MemoryQuestion[] = rawQuestions
-        .filter((q) => scenes[q.sceneIndex])
+        .filter((q) => scenesInModelOrder[q.sceneIndex])
         .slice(0, MAX_MEMORY_QUESTIONS)
         .map((q) => ({
           id: generateId("question"),
-          sceneId: scenes[q.sceneIndex].id,
+          sceneId: scenesInModelOrder[q.sceneIndex].id,
           question: q.question,
           options: q.options?.length ? q.options : DEFAULT_MEMORY_QUESTION_OPTIONS,
         }));
@@ -521,6 +540,12 @@ export default function TravelProjectPage() {
             onBack={() => setStoryCardOpen(false)}
             onSaved={setProject}
           />
+        ) : albumOpen ? (
+          <AlbumStudio
+            project={project}
+            onBack={() => setAlbumOpen(false)}
+            onSaved={setProject}
+          />
         ) : editingStory ? (
           <StoryEditor
             story={project.story}
@@ -539,6 +564,7 @@ export default function TravelProjectPage() {
             project={project}
             onEdit={() => setEditingStory(true)}
             onOpenStoryCard={() => setStoryCardOpen(true)}
+            onOpenAlbum={() => setAlbumOpen(true)}
           />
         )
       )}

@@ -16,11 +16,9 @@ export async function extractExif(file: File): Promise<ExifResult> {
     const data = await parse(file, { gps: true });
     if (!data) return {};
 
-    const date: Date | undefined = data.DateTimeOriginal ?? data.CreateDate;
     const result: ExifResult = {};
-    if (date instanceof Date && !Number.isNaN(date.getTime())) {
-      result.capturedAt = date.toISOString();
-    }
+    const capturedAt = normalizeExifDate(data.DateTimeOriginal ?? data.CreateDate);
+    if (capturedAt) result.capturedAt = capturedAt;
     if (typeof data.latitude === "number" && typeof data.longitude === "number") {
       result.latitude = data.latitude;
       result.longitude = data.longitude;
@@ -29,4 +27,24 @@ export async function extractExif(file: File): Promise<ExifResult> {
   } catch {
     return {};
   }
+}
+
+function normalizeExifDate(value: unknown): string | undefined {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
+  if (typeof value !== "string") return undefined;
+  const exif = value.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (exif) {
+    const date = new Date(
+      Number(exif[1]),
+      Number(exif[2]) - 1,
+      Number(exif[3]),
+      Number(exif[4]),
+      Number(exif[5]),
+      Number(exif[6]),
+    );
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  }
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  return undefined;
 }

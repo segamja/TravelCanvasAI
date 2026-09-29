@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 /**
  * Reads package.json fresh on every request (not a build-time constant) so
  * this always reflects whichever server process is actually answering —

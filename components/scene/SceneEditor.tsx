@@ -4,6 +4,7 @@ import { useState } from "react";
 import Button from "@/components/ui/Button";
 import PhotoCard from "@/components/photo/PhotoCard";
 import { usePhotoUrls } from "@/lib/hooks/usePhotoUrls";
+import { photoTimeCaption } from "@/lib/photoDates";
 import type { TravelScene } from "@/types/scene";
 
 interface SceneEditorProps {
@@ -63,6 +64,7 @@ export default function SceneEditor({
             <PhotoCard
               key={id}
               src={urls[id]}
+              caption={photoTimeCaption(id)}
               onRemove={() => setPhotoIds((prev) => prev.filter((p) => p !== id))}
             />
           ))}
@@ -85,7 +87,7 @@ export default function SceneEditor({
                     onClick={() => setPhotoIds((prev) => [...prev, id])}
                     className="opacity-70 hover:opacity-100"
                   >
-                    <PhotoCard src={urls[id]} />
+                    <PhotoCard src={urls[id]} caption={photoTimeCaption(id)} />
                   </button>
                 ))}
               </div>

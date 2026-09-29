@@ -4,6 +4,7 @@ import { CalendarDays, ChevronDown, ChevronUp, MapPin, Pencil, Trash2 } from "lu
 import PhotoCard from "@/components/photo/PhotoCard";
 import { usePhotoUrls } from "@/lib/hooks/usePhotoUrls";
 import { formatDateRange } from "@/lib/utils";
+import { dateRangeFromPhotoIds, groupPhotoIdsByDay, photoTimeCaption } from "@/lib/photoDates";
 import type { TravelScene } from "@/types/scene";
 
 interface SceneCardProps {
@@ -25,8 +26,13 @@ export default function SceneCard({
   onMoveUp,
   onMoveDown,
 }: SceneCardProps) {
-  const urls = usePhotoUrls(scene.photoIds.slice(0, 8));
-  const dateLabel = formatDateRange(scene.startTime, scene.endTime);
+  const urls = usePhotoUrls(scene.photoIds);
+  const photoRange = dateRangeFromPhotoIds(scene.photoIds);
+  const dateLabel = formatDateRange(
+    scene.startTime ?? photoRange.start,
+    scene.endTime ?? photoRange.end,
+  );
+  const groups = groupPhotoIdsByDay(scene.photoIds);
 
   return (
     <div className="rounded-xl border border-border-subdued bg-surface-card p-5 shadow-[var(--shadow-keepsake)]">
@@ -90,9 +96,18 @@ export default function SceneCard({
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-8">
-        {scene.photoIds.slice(0, 8).map((id) => (
-          <PhotoCard key={id} src={urls[id]} />
+      <div className="flex flex-col gap-3">
+        {groups.map((group) => (
+          <div key={group.label}>
+            {groups.length > 1 && (
+              <p className="mb-1.5 text-caption-meta text-text-tertiary">{group.label}</p>
+            )}
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-8">
+              {group.ids.map((id) => (
+                <PhotoCard key={id} src={urls[id]} caption={photoTimeCaption(id)} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>

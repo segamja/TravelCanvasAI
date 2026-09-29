@@ -13,8 +13,10 @@ export function cn(...classes: Array<string | false | null | undefined>): string
 export function formatDateRange(startDate?: string, endDate?: string): string {
   if (!startDate) return "";
   const start = formatDate(startDate);
-  if (!endDate || endDate === startDate) return start;
-  return `${start} – ${formatDate(endDate)}`;
+  if (!endDate) return start;
+  const end = formatDate(endDate);
+  if (!end || start === end) return start;
+  return `${start} – ${end}`;
 }
 
 export function formatDate(iso: string): string {

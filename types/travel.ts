@@ -1,6 +1,7 @@
 import type { TravelScene, MemoryQuestion } from "./scene";
 import type { TravelStory } from "./story";
 import type { StoryCard } from "./storyCard";
+import type { TravelAlbum } from "./album";
 
 /**
  * Tracks how far a project has progressed through the pipeline so that
@@ -26,6 +27,7 @@ export interface TravelProject {
   memoryQuestions: MemoryQuestion[];
   story?: TravelStory;
   storyCard?: StoryCard;
+  album?: TravelAlbum;
   status: ProjectStatus;
   createdAt: string;
   updatedAt: string;

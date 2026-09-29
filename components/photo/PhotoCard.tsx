@@ -6,11 +6,12 @@ import { cn } from "@/lib/utils";
 interface PhotoCardProps {
   src?: string;
   alt?: string;
+  caption?: string;
   onRemove?: () => void;
   className?: string;
 }
 
-export default function PhotoCard({ src, alt = "", onRemove, className }: PhotoCardProps) {
+export default function PhotoCard({ src, alt = "", caption, onRemove, className }: PhotoCardProps) {
   return (
     <div
       className={cn(
@@ -25,6 +26,11 @@ export default function PhotoCard({ src, alt = "", onRemove, className }: PhotoC
         <div className="flex h-full w-full items-center justify-center text-text-tertiary">
           <ImageOff size={20} />
         </div>
+      )}
+      {caption && (
+        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-charcoal/80 to-transparent px-1.5 pb-1 pt-4 text-[10px] font-medium text-white">
+          {caption}
+        </span>
       )}
       {onRemove && (
         <button

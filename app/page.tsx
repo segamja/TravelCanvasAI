@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sparkles, UploadCloud } from "lucide-react";
-import SeasonalHeroBackground from "@/components/home/SeasonalHeroBackground";
 import TravelList from "@/components/travel/TravelList";
+import { useAppVersion } from "@/lib/hooks/useAppVersion";
 import { listProjects, deleteProject } from "@/storage/travelStorage";
 import type { TravelProject } from "@/types/travel";
 
 export default function HomePage() {
+  const version = useAppVersion();
   const [projects, setProjects] = useState<TravelProject[] | null>(null);
 
   useEffect(() => {
@@ -24,8 +25,7 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
-      <section className="relative mb-14 grid grid-cols-1 items-center gap-8 overflow-hidden rounded-xl p-5 lg:grid-cols-12 lg:p-8">
-        <SeasonalHeroBackground />
+      <section className="relative mb-14 grid grid-cols-1 items-center gap-8 rounded-xl p-5 lg:grid-cols-12 lg:p-8">
         <div className="relative lg:col-span-7">
           <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary-subtle px-3 py-1 text-caption-meta font-medium text-primary">
             <Sparkles size={13} />
@@ -40,6 +40,11 @@ export default function HomePage() {
             사진을 올리기만 하면 AI가 장소와 시간, 감정의 흐름을 엮어 하나의 여행 이야기로
             재구성합니다.
           </p>
+          {version && (
+            <p className="mt-4 text-caption-meta font-medium text-text-tertiary">
+              현재 버전 v{version}
+            </p>
+          )}
         </div>
         <div className="lg:col-span-5">
           <div className="relative rounded-xl bg-surface-card p-6 shadow-[var(--shadow-floating)]">

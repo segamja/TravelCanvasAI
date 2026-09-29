@@ -1,3 +1,4 @@
+import { effectiveCapturedAt, toDateInputValue } from "@/lib/photoDates";
 import { formatDateRange, generateId } from "@/lib/utils";
 import type { Photo } from "@/types/photo";
 import type { StoryCard, StoryCardDecision, StoryCardLayout, StoryCardPalette } from "@/types/storyCard";
@@ -32,6 +33,10 @@ export function collectStoryCardFacts(project: TravelProject, photos: Photo[]): 
     ...project.scenes.map((scene) => scene.location),
     ...photos.map((photo) => photo.analysis?.location),
   ]);
+  const captured = photos
+    .map((photo) => effectiveCapturedAt(photo))
+    .filter((value): value is string => Boolean(value))
+    .sort();
 
   return {
     projectId: project.id,
@@ -42,13 +47,15 @@ export function collectStoryCardFacts(project: TravelProject, photos: Photo[]): 
       body: chapter.body,
       photoIds: chapter.photoIds,
     })),
-    startDate: project.startDate,
-    endDate: project.endDate,
+    startDate: project.startDate || (captured[0] ? toDateInputValue(captured[0]) : undefined),
+    endDate:
+      project.endDate ||
+      (captured.length > 0 ? toDateInputValue(captured[captured.length - 1]) : undefined),
     coverPhotoId: project.coverPhotoId,
     knownPlaces,
     photos: photos.map((photo) => ({
       id: photo.id,
-      capturedAt: photo.capturedAt,
+      capturedAt: effectiveCapturedAt(photo),
       location: photo.analysis?.location,
       description: photo.analysis?.description,
       mood: photo.analysis?.mood,
