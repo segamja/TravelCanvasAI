@@ -13,6 +13,12 @@ export const MAX_ORIGINAL_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20MB per photo 
 export const AI_ANALYSIS_MAX_DIMENSION = 1024;
 export const AI_ANALYSIS_JPEG_QUALITY = 0.8;
 
+/**
+ * Max JSON body for one /api/analyze call. The platform rejects larger
+ * requests with 413, so the browser sends several smaller batches.
+ */
+export const ANALYZE_REQUEST_MAX_BYTES = 3 * 1024 * 1024;
+
 /** Longest edge kept for the single stored/display image (grid + story view). */
 export const STORAGE_MAX_DIMENSION = 1600;
 export const STORAGE_JPEG_QUALITY = 0.85;

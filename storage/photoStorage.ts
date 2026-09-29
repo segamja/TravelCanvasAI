@@ -3,6 +3,7 @@ import { getItem, setItem, removeItem } from "./localStorage";
 import { resizeImageToDataUrl } from "@/lib/utils";
 import { AI_ANALYSIS_JPEG_QUALITY, AI_ANALYSIS_MAX_DIMENSION } from "@/lib/constants";
 import type { Photo } from "@/types/photo";
+import type { PhotoStore } from "./ports";
 
 const PHOTO_META_KEY = (id: string) => `photo:${id}`;
 
@@ -69,3 +70,15 @@ export async function deletePhotos(ids: string[]): Promise<void> {
   });
   await deleteBlobs(ids);
 }
+
+/** Local IndexedDB/localStorage photo store. Call sites keep using the functions above. */
+export const localPhotoStore: PhotoStore = {
+  savePhotoBlob,
+  savePhotoMeta,
+  getPhotoMeta,
+  getPhotosMeta,
+  getPhotoObjectUrl,
+  getPhotoAnalysisDataUrl,
+  deletePhoto,
+  deletePhotos,
+};

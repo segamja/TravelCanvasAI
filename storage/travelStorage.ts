@@ -6,6 +6,7 @@ import type { TravelScene, MemoryQuestion } from "@/types/scene";
 import type { TravelStory } from "@/types/story";
 import type { StoryCard } from "@/types/storyCard";
 import type { TravelAlbum } from "@/types/album";
+import type { ProjectStore } from "./ports";
 
 const INDEX_KEY = "projects:index";
 const projectKey = (id: string) => `project:${id}`;
@@ -108,3 +109,18 @@ export async function deleteProject(id: string): Promise<void> {
   removeItem(projectKey(id));
   setIndex(getIndex().filter((existingId) => existingId !== id));
 }
+
+/** Local project store. Call sites keep using the functions above. */
+export const localProjectStore: ProjectStore = {
+  listProjects,
+  getProject,
+  createProject,
+  updateProject,
+  setProjectStatus,
+  saveScenes,
+  saveMemoryQuestions,
+  saveStory,
+  saveStoryCard,
+  saveAlbum,
+  deleteProject,
+};

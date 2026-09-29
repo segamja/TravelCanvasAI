@@ -28,6 +28,7 @@ import {
   deletePhoto,
   getPhotoAnalysisDataUrl,
 } from "@/storage/photoStorage";
+import { requestPhotoAnalysis, requestScenes, requestStory, requestTitleSuggestions } from "@/lib/clientApi";
 import { extractExif } from "@/lib/exif";
 import {
   dateRangeFromPhotoIds,
@@ -197,14 +198,7 @@ export default function TravelProjectPage() {
       );
 
       setAnalysisStepIndex(1);
-      const analyzeRes = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photos: inputs }),
-      });
-      const analyzeJson = await analyzeRes.json();
-      if (!analyzeRes.ok) throw new Error(analyzeJson.error ?? "사진 분석에 실패했습니다.");
-      const analyses: Record<string, Photo["analysis"]> = analyzeJson.analyses;
+      const analyses = await requestPhotoAnalysis(inputs);
 
       const updatedPhotos: Photo[] = [];
       for (const id of current.photoIds) {
@@ -230,25 +224,11 @@ export default function TravelProjectPage() {
         }));
 
       setAnalysisStepIndex(3);
-      const scenesRes = await fetch("/api/scenes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photos: sceneInputs }),
-      });
-      const scenesJson = await scenesRes.json();
-      if (!scenesRes.ok) throw new Error(scenesJson.error ?? "장면 구성에 실패했습니다.");
+      const scenesJson = await requestScenes(sceneInputs);
 
       const photoById = new Map(updatedPhotos.map((p) => [p.id, p]));
-      const scenesInModelOrder: TravelScene[] = (scenesJson.scenes ?? []).map(
-        (raw: {
-          title: string;
-          summary: string;
-          photoIds: string[];
-          location?: string;
-          startTime?: string;
-          endTime?: string;
-          confidence?: number;
-        }) => {
+      const scenesInModelOrder: TravelScene[] = scenesJson.scenes.map(
+        (raw) => {
           // Real EXIF dates are ground truth; prefer them over the AI's own
           // startTime/endTime guess, which it may omit or get wrong.
           const photoIds = [...raw.photoIds].sort((a, b) => {
@@ -275,8 +255,7 @@ export default function TravelProjectPage() {
         (a.startTime ?? "").localeCompare(b.startTime ?? ""),
       );
 
-      const rawQuestions: { sceneIndex: number; question: string; options: string[] }[] =
-        scenesJson.memoryQuestions ?? [];
+      const rawQuestions = scenesJson.memoryQuestions;
       const questions: MemoryQuestion[] = rawQuestions
         .filter((q) => scenesInModelOrder[q.sceneIndex])
         .slice(0, MAX_MEMORY_QUESTIONS)
@@ -309,19 +288,13 @@ export default function TravelProjectPage() {
       new Set(photos.map((p) => p.analysis?.mood).filter((v): v is string => !!v)),
     );
     try {
-      const res = await fetch("/api/suggest-title", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locations,
-          moods,
-          startDate: proj.startDate,
-          endDate: proj.endDate,
-        }),
+      const titles = await requestTitleSuggestions({
+        locations,
+        moods,
+        startDate: proj.startDate,
+        endDate: proj.endDate,
       });
-      if (!res.ok) return;
-      const json: { titles?: string[] } = await res.json();
-      setTitleSuggestions(json.titles ?? []);
+      setTitleSuggestions(titles);
     } catch {
       // Supplementary only; the user can always type their own title.
     }
@@ -397,24 +370,12 @@ export default function TravelProjectPage() {
       });
 
       setStoryStepIndex(2);
-      const res = await fetch("/api/generate-story", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectTitle: current.title,
-          startDate: current.startDate,
-          endDate: current.endDate,
-          scenes: sceneInputs,
-        }),
+      const raw = await requestStory({
+        projectTitle: current.title,
+        startDate: current.startDate,
+        endDate: current.endDate,
+        scenes: sceneInputs,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "이야기 생성에 실패했습니다.");
-
-      const raw = json.story as {
-        title: string;
-        subtitle?: string;
-        chapters: { title: string; photoIds: string[]; body: string }[];
-      };
       const story: TravelStory = {
         projectId: current.id,
         title: raw.title,
