@@ -1,4 +1,4 @@
-import { ALBUM_THEMES } from "@/lib/albumTheme";
+import { ALBUM_THEMES, type AlbumFrame } from "@/lib/albumTheme";
 import { effectiveCapturedAt, formatPhotoTime } from "@/lib/photoDates";
 import { getPhotoMeta } from "@/storage/photoStorage";
 import type { AlbumLayout, AlbumPage } from "@/types/album";
@@ -57,7 +57,19 @@ export async function renderAlbumPageToBlob(
 
   const photoTop = cursor + 16;
   const photoBottom = page.body ? 1120 : 1280;
-  drawPhotoGrid(ctx, photos, page.photoIds, x, photoTop, maxW, photoBottom - photoTop, theme.line, fonts.sans);
+  drawPhotoGrid(
+    ctx,
+    photos,
+    page.photoIds,
+    x,
+    photoTop,
+    maxW,
+    photoBottom - photoTop,
+    theme.line,
+    theme.muted,
+    fonts.sans,
+    theme.frame,
+  );
 
   if (page.body) {
     ctx.fillStyle = theme.ink;
@@ -86,12 +98,14 @@ function drawPhotoGrid(
   width: number,
   height: number,
   fallback: string,
+  captionColor: string,
   sans: string,
+  frame: AlbumFrame,
 ) {
   if (images.length === 0 || height < 40) return;
   const columns = images.length > 1 ? 2 : 1;
   const rows = Math.ceil(images.length / columns);
-  const gap = 16;
+  const gap = 28;
   const cellW = (width - gap * (columns - 1)) / columns;
   const cellH = (height - gap * (rows - 1)) / rows;
   images.forEach((image, index) => {
@@ -99,14 +113,41 @@ function drawPhotoGrid(
     const row = Math.floor(index / columns);
     const left = x + col * (cellW + gap);
     const top = y + row * (cellH + gap);
-    drawCover(ctx, image, left, top, cellW, cellH - 28, fallback);
+    drawFramedPhoto(ctx, image, left, top, cellW, cellH - 28, fallback, frame);
     const time = formatPhotoTime(effectiveCapturedAt(getPhotoMeta(photoIds[index])));
     if (time) {
-      ctx.fillStyle = "#5c514c";
+      ctx.fillStyle = captionColor;
       ctx.font = `500 20px ${sans}`;
       ctx.fillText(time, left, top + cellH - 4);
     }
   });
+}
+
+function drawFramedPhoto(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fallback: string,
+  frame: AlbumFrame,
+) {
+  const pad = Math.min(frame.border, Math.floor(Math.min(w, h) / 5));
+  if (frame.canvasShadow) {
+    ctx.save();
+    ctx.shadowColor = frame.canvasShadow.color;
+    ctx.shadowBlur = frame.canvasShadow.blur;
+    ctx.shadowOffsetY = frame.canvasShadow.offsetY;
+    ctx.fillStyle = pad > 0 ? frame.borderColor : "#ffffff";
+    ctx.fillRect(x, y, w, h);
+    ctx.restore();
+  }
+  if (pad > 0) {
+    ctx.fillStyle = frame.borderColor;
+    ctx.fillRect(x, y, w, h);
+  }
+  drawCover(ctx, image, x + pad, y + pad, w - pad * 2, h - pad * 2, fallback);
 }
 
 async function resolveFonts(): Promise<{ display: string; sans: string }> {

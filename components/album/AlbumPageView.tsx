@@ -19,6 +19,7 @@ export default function AlbumPageView({
   authorName,
 }: AlbumPageViewProps) {
   const theme = ALBUM_THEMES[layout];
+  const frame = theme.frame;
   const kicker = page.kind === "cover" ? "Photobook" : page.kind === "closing" ? "The end" : page.dateLabel;
 
   return (
@@ -49,15 +50,27 @@ export default function AlbumPageView({
             {page.placeLabel}
           </p>
         )}
-        <div className={`mt-[4%] grid min-h-0 flex-1 gap-[2%] ${page.photoIds.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+        <div className={`mt-[4%] grid min-h-0 flex-1 gap-[4%] ${page.photoIds.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
           {page.photoIds.map((id) => (
             <figure key={id} className="flex min-h-0 flex-col">
-              {photoUrls[id] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoUrls[id]} alt="" className="min-h-0 flex-1 w-full object-cover" />
-              ) : (
-                <div className="min-h-0 flex-1" style={{ background: theme.line }} />
-              )}
+              <div
+                className="min-h-0 flex-1"
+                style={{
+                  border:
+                    frame.border > 0
+                      ? `calc(${frame.border} * 100cqw / 1080) solid ${frame.borderColor}`
+                      : undefined,
+                  boxShadow: frame.shadowCss,
+                  background: frame.borderColor,
+                }}
+              >
+                {photoUrls[id] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoUrls[id]} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full" style={{ background: theme.line }} />
+                )}
+              </div>
               {formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id))) && (
                 <figcaption
                   className="pt-[2%] font-sans"
