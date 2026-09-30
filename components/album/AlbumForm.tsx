@@ -67,7 +67,7 @@ export default function AlbumForm({ project, onCancel, onCreate }: AlbumFormProp
         <p className="text-label-badge font-semibold uppercase tracking-widest text-primary">Photobook</p>
         <h1 className="mt-1 font-display text-headline-page-mobile font-semibold text-charcoal">앨범 만들기</h1>
         <p className="mt-2 text-body-sm text-on-surface-variant">
-          촬영일마다 페이지가 나뉩니다. 사진은 여행 사진이고, Unsplash 이미지는 배경으로만 깔립니다.
+          촬영일마다 가로·세로를 나눠 페이지를 만듭니다. 사진은 잘리지 않고, Unsplash 이미지는 배경으로만 깔립니다.
         </p>
       </div>
       <label className="text-body-sm">

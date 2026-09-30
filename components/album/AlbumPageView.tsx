@@ -1,6 +1,6 @@
+import { albumPhotoCaption } from "@/lib/buildAlbum";
 import { ALBUM_THEMES } from "@/lib/albumTheme";
-import { albumPhotoRows, albumRowWeight, isLandscapePhoto, photoAspect } from "@/lib/albumPhotoRows";
-import { effectiveCapturedAt, formatPhotoTime } from "@/lib/photoDates";
+import { isLandscapePhoto, measureAlbumBlock, photoAspect } from "@/lib/albumLayout";
 import { getPhotoMeta } from "@/storage/photoStorage";
 import type { AlbumLayout, AlbumPage } from "@/types/album";
 
@@ -8,6 +8,7 @@ interface AlbumPageViewProps {
   page: AlbumPage;
   layout: AlbumLayout;
   photoUrls: Record<string, string>;
+  photoPlaces?: Record<string, string>;
   backgroundUrl?: string;
   authorName?: string;
 }
@@ -16,14 +17,20 @@ export default function AlbumPageView({
   page,
   layout,
   photoUrls,
+  photoPlaces = {},
   backgroundUrl,
   authorName,
 }: AlbumPageViewProps) {
   const theme = ALBUM_THEMES[layout];
   const frame = theme.frame;
   const kicker = page.kind === "cover" ? "Photobook" : page.kind === "closing" ? "The end" : page.dateLabel;
-  const rows = albumPhotoRows(page.photoIds, (id) => isLandscapePhoto(getPhotoMeta(id)));
-  const weights = rows.map((ids) => albumRowWeight(ids, (id) => photoAspect(getPhotoMeta(id))));
+  const captionFor = (id: string) => albumPhotoCaption(id, page.placeLabel, photoPlaces);
+  const block = measureAlbumBlock(
+    page.photoIds,
+    (id) => photoAspect(getPhotoMeta(id)),
+    (id) => isLandscapePhoto(getPhotoMeta(id)),
+    (id) => captionFor(id).length > 0,
+  );
 
   return (
     <article
@@ -53,47 +60,56 @@ export default function AlbumPageView({
             {page.placeLabel}
           </p>
         )}
-        <div
-          className="mt-[4%] grid min-h-0 flex-1 gap-[4%]"
-          style={{ gridTemplateRows: weights.map((weight) => `${weight}fr`).join(" ") }}
-        >
-          {rows.map((ids) => (
+        <div className="relative mt-[4%] min-h-0 flex-1" style={{ containerType: "size" }}>
+          {block.photos.length > 0 && (
             <div
-              key={ids.join("-")}
-              className={`grid min-h-0 gap-[4%] ${ids.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{
+                width: `min(100cqw, calc(100cqh * ${block.width} / ${block.height}))`,
+                aspectRatio: `${block.width} / ${block.height}`,
+              }}
             >
-              {ids.map((id) => (
-                <figure key={id} className="flex min-h-0 flex-col">
+              {block.photos.map((photo) => (
+                <figure
+                  key={photo.id}
+                  className="absolute"
+                  style={{
+                    left: `${(photo.x / block.width) * 100}%`,
+                    top: `${(photo.y / block.height) * 100}%`,
+                    width: `${(photo.w / block.width) * 100}%`,
+                    height: `${(photo.h / block.height) * 100}%`,
+                  }}
+                >
                   <div
-                    className="min-h-0 flex-1"
+                    className="h-full w-full"
                     style={{
                       border:
                         frame.border > 0
-                          ? `calc(${frame.border} * 100cqw / 1080) solid ${frame.borderColor}`
+                          ? `calc(${frame.border} * 100cqi / 1080) solid ${frame.borderColor}`
                           : undefined,
                       boxShadow: frame.shadowCss,
                       background: frame.borderColor,
                     }}
                   >
-                    {photoUrls[id] ? (
+                    {photoUrls[photo.id] ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photoUrls[id]} alt="" className="h-full w-full object-cover" />
+                      <img src={photoUrls[photo.id]} alt="" className="h-full w-full object-contain" />
                     ) : (
                       <div className="h-full w-full" style={{ background: theme.line }} />
                     )}
                   </div>
-                  {formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id))) && (
+                  {captionFor(photo.id) && (
                     <figcaption
-                      className="pt-[2%] font-sans"
-                      style={{ color: theme.muted, fontSize: "clamp(10px, 2.3cqw, 12px)" }}
+                      className="absolute left-0 top-full w-full truncate pt-[1%] font-sans"
+                      style={{ color: theme.muted, fontSize: "clamp(10px, 2.3cqi, 12px)" }}
                     >
-                      {formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id)))}
+                      {captionFor(photo.id)}
                     </figcaption>
                   )}
                 </figure>
               ))}
             </div>
-          ))}
+          )}
         </div>
         {page.body && (
           <p

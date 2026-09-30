@@ -1,10 +1,9 @@
+import { isLandscapePhoto, planDayPhotoPages } from "@/lib/albumLayout";
 import { groupPhotoIdsByDay, type PhotoDayGroup } from "@/lib/photoDates";
 import { generateId } from "@/lib/utils";
 import type { AlbumFormValues, AlbumPage, TravelAlbum } from "@/types/album";
 import type { Photo } from "@/types/photo";
 import type { TravelProject } from "@/types/travel";
-
-const PHOTOS_PER_PAGE = { photo: 4, story: 2 } as const;
 
 export function listAlbumDays(project: TravelProject): PhotoDayGroup[] {
   return groupPhotoIdsByDay(project.photoIds);
@@ -19,7 +18,6 @@ export function buildTravelAlbum(
   const days = listAlbumDays(project).filter((day) =>
     values.dayLabels.length === 0 ? true : values.dayLabels.includes(day.label),
   );
-  const perPage = PHOTOS_PER_PAGE[values.density];
   const coverPhotoId = pickCover(project, days);
   const pages: AlbumPage[] = [
     {
@@ -37,7 +35,7 @@ export function buildTravelAlbum(
   ];
 
   for (const day of days) {
-    const chunks = chunk(day.ids, perPage);
+    const chunks = planDayPhotoPages(day.ids, (id) => isLandscapePhoto(photoById.get(id)));
     chunks.forEach((ids, index) => {
       const place = firstPlace(project, ids);
       pages.push({
@@ -79,6 +77,52 @@ export function buildTravelAlbum(
     pages,
     createdAt: new Date().toISOString(),
   };
+}
+
+/** Scene place for each photo. The first scene with a location wins. */
+export function photoScenePlaces(project: TravelProject): Record<string, string> {
+  const places: Record<string, string> = {};
+  for (const scene of project.scenes) {
+    const location = scene.location?.trim();
+    if (!location) continue;
+    for (const id of scene.photoIds) {
+      if (!places[id]) places[id] = location;
+    }
+  }
+  return places;
+}
+
+export function albumPhotoCaption(photoId: string, pagePlace: string, places: Record<string, string>): string {
+  const place = places[photoId]?.trim() ?? "";
+  if (!place || place === pagePlace.trim()) return "";
+  return place;
+}
+
+/** Saved pages that still hold too many photos are split with the current rules. */
+export function reflowAlbum(album: TravelAlbum, photos: Photo[]): TravelAlbum {
+  const photoById = new Map(photos.map((photo) => [photo.id, photo]));
+  const isWide = (id: string) => isLandscapePhoto(photoById.get(id));
+  const pages: AlbumPage[] = [];
+  for (const page of album.pages) {
+    if (page.kind !== "day") {
+      pages.push(page);
+      continue;
+    }
+    const chunks = planDayPhotoPages(page.photoIds, isWide);
+    if (chunks.length <= 1) {
+      pages.push(page);
+      continue;
+    }
+    chunks.forEach((ids, index) => {
+      pages.push({
+        ...page,
+        id: index === 0 ? page.id : generateId("page"),
+        photoIds: ids,
+        body: index === 0 ? page.body : "",
+      });
+    });
+  }
+  return pages.length === album.pages.length ? album : { ...album, pages };
 }
 
 function pickCover(project: TravelProject, days: PhotoDayGroup[]): string {
@@ -137,10 +181,3 @@ function takeSentences(text: string, count: number, maxChars: number): string {
   return out || normalized.slice(0, maxChars).trim();
 }
 
-function chunk<T>(items: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    result.push(items.slice(index, index + size));
-  }
-  return result;
-}

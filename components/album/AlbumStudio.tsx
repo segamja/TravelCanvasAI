@@ -3,7 +3,9 @@
 import { useState } from "react";
 import AlbumForm from "@/components/album/AlbumForm";
 import AlbumPreview from "@/components/album/AlbumPreview";
+import { photoScenePlaces, reflowAlbum } from "@/lib/buildAlbum";
 import { saveAlbum } from "@/storage/travelStorage";
+import { getPhotosMeta } from "@/storage/photoStorage";
 import type { TravelAlbum } from "@/types/album";
 import type { TravelProject } from "@/types/travel";
 
@@ -31,7 +33,9 @@ function albumSignature(album: TravelAlbum): string {
 }
 
 export default function AlbumStudio({ project, onBack, onSaved }: AlbumStudioProps) {
-  const [album, setAlbum] = useState<TravelAlbum | null>(project.album ?? null);
+  const [album, setAlbum] = useState<TravelAlbum | null>(
+    project.album ? reflowAlbum(project.album, getPhotosMeta(project.photoIds)) : null,
+  );
   const [editing, setEditing] = useState(!project.album);
   const [savedSignature, setSavedSignature] = useState<string | null>(
     project.album ? albumSignature(project.album) : null,
@@ -53,6 +57,7 @@ export default function AlbumStudio({ project, onBack, onSaved }: AlbumStudioPro
   return (
     <AlbumPreview
       album={album}
+      photoPlaces={photoScenePlaces(project)}
       saved={savedSignature === albumSignature(album)}
       onBack={onBack}
       onEdit={() => setEditing(true)}

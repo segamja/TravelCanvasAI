@@ -10,13 +10,14 @@ import type { TravelAlbum } from "@/types/album";
 
 interface AlbumPreviewProps {
   album: TravelAlbum;
+  photoPlaces?: Record<string, string>;
   saved: boolean;
   onBack: () => void;
   onEdit: () => void;
   onSave: () => void;
 }
 
-export default function AlbumPreview({ album, saved, onBack, onEdit, onSave }: AlbumPreviewProps) {
+export default function AlbumPreview({ album, photoPlaces = {}, saved, onBack, onEdit, onSave }: AlbumPreviewProps) {
   const [index, setIndex] = useState(0);
   const [backgrounds, setBackgrounds] = useState<Record<string, AlbumBackground>>({});
   const [exportError, setExportError] = useState<string>();
@@ -59,7 +60,7 @@ export default function AlbumPreview({ album, saved, onBack, onEdit, onSave }: A
   async function handleDownload() {
     setExportError(undefined);
     try {
-      const blob = await renderAlbumPageToBlob(page, album.layout, urls, background);
+      const blob = await renderAlbumPageToBlob(page, album.layout, urls, background, photoPlaces);
       const name = `${album.title.replace(/[\\/:*?"<>|]/g, "").trim() || "album"}-${index + 1}.png`;
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -91,6 +92,7 @@ export default function AlbumPreview({ album, saved, onBack, onEdit, onSave }: A
         page={page}
         layout={album.layout}
         photoUrls={urls}
+        photoPlaces={photoPlaces}
         backgroundUrl={background?.url}
         authorName={background?.authorName}
       />

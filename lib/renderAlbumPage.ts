@@ -1,6 +1,6 @@
+import { albumPhotoCaption } from "@/lib/buildAlbum";
 import { ALBUM_THEMES, type AlbumFrame } from "@/lib/albumTheme";
-import { albumPhotoRows, albumRowWeight, isLandscapePhoto, photoAspect } from "@/lib/albumPhotoRows";
-import { effectiveCapturedAt, formatPhotoTime } from "@/lib/photoDates";
+import { isLandscapePhoto, measureAlbumBlock, photoAspect } from "@/lib/albumLayout";
 import { getPhotoMeta } from "@/storage/photoStorage";
 import type { AlbumLayout, AlbumPage } from "@/types/album";
 
@@ -17,6 +17,7 @@ export async function renderAlbumPageToBlob(
   layout: AlbumLayout,
   photoUrls: Record<string, string>,
   background?: AlbumBackground,
+  photoPlaces: Record<string, string> = {},
 ): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
@@ -70,6 +71,7 @@ export async function renderAlbumPageToBlob(
     theme.muted,
     fonts.sans,
     theme.frame,
+    (id) => albumPhotoCaption(id, page.placeLabel, photoPlaces),
   );
 
   if (page.body) {
@@ -102,30 +104,32 @@ function drawPhotoGrid(
   captionColor: string,
   sans: string,
   frame: AlbumFrame,
+  captionFor: (id: string) => string,
 ) {
-  if (photoIds.length === 0 || height < 40) return;
+  if (photoIds.length === 0 || height < 40 || width < 40) return;
   const imageById = new Map(photoIds.map((id, index) => [id, images[index]]));
-  const rows = albumPhotoRows(photoIds, (id) => isLandscapePhoto(getPhotoMeta(id)));
-  const weights = rows.map((ids) => albumRowWeight(ids, (id) => photoAspect(getPhotoMeta(id))));
-  const weightSum = weights.reduce((sum, weight) => sum + weight, 0) || 1;
-  const gap = 28;
-  const caption = 28;
-  const available = height - gap * Math.max(rows.length - 1, 0);
-  let top = y;
-  rows.forEach((ids, index) => {
-    const rowH = (available * weights[index]) / weightSum;
-    const cellW = ids.length > 1 ? (width - gap) / ids.length : width;
-    ids.forEach((id, col) => {
-      const left = x + col * (cellW + (ids.length > 1 ? gap : 0));
-      drawFramedPhoto(ctx, imageById.get(id) ?? null, left, top, cellW, Math.max(rowH - caption, 8), fallback, frame);
-      const time = formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id)));
-      if (time) {
-        ctx.fillStyle = captionColor;
-        ctx.font = `500 20px ${sans}`;
-        ctx.fillText(time, left, top + rowH - 4);
-      }
-    });
-    top += rowH + gap;
+  const block = measureAlbumBlock(
+    photoIds,
+    (id) => photoAspect(getPhotoMeta(id)),
+    (id) => isLandscapePhoto(getPhotoMeta(id)),
+    (id) => captionFor(id).length > 0,
+  );
+  if (block.photos.length === 0 || block.width <= 0 || block.height <= 0) return;
+  const scale = Math.min(width / block.width, height / block.height);
+  const originX = x + (width - block.width * scale) / 2;
+  const originY = y + (height - block.height * scale) / 2;
+  block.photos.forEach((photo) => {
+    const left = originX + photo.x * scale;
+    const top = originY + photo.y * scale;
+    const photoW = photo.w * scale;
+    const photoH = photo.h * scale;
+    drawFramedPhoto(ctx, imageById.get(photo.id) ?? null, left, top, photoW, photoH, fallback, frame);
+    const caption = captionFor(photo.id);
+    if (caption) {
+      ctx.fillStyle = captionColor;
+      ctx.font = `500 ${Math.max(12, Math.round(18 * scale))}px ${sans}`;
+      ctx.fillText(caption, left, top + photoH + Math.max(14, 22 * scale));
+    }
   });
 }
 
@@ -153,7 +157,7 @@ function drawFramedPhoto(
     ctx.fillStyle = frame.borderColor;
     ctx.fillRect(x, y, w, h);
   }
-  drawCover(ctx, image, x + pad, y + pad, w - pad * 2, h - pad * 2, fallback);
+  drawContain(ctx, image, x + pad, y + pad, w - pad * 2, h - pad * 2, fallback);
 }
 
 async function resolveFonts(): Promise<{ display: string; sans: string }> {
@@ -179,6 +183,32 @@ function loadImage(url?: string): Promise<HTMLImageElement | null> {
     image.onerror = () => resolve(null);
     image.src = url;
   });
+}
+
+function drawContain(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fallback: string,
+) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  if (!image || w <= 0 || h <= 0) {
+    ctx.fillStyle = fallback;
+    ctx.fillRect(x, y, w, h);
+    ctx.restore();
+    return;
+  }
+  const scale = Math.min(w / image.width, h / image.height);
+  const dw = image.width * scale;
+  const dh = image.height * scale;
+  ctx.drawImage(image, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  ctx.restore();
 }
 
 function drawCover(
