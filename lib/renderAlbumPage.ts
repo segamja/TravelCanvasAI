@@ -1,4 +1,5 @@
 import { ALBUM_THEMES, type AlbumFrame } from "@/lib/albumTheme";
+import { albumPhotoRows, albumRowWeight, isLandscapePhoto, photoAspect } from "@/lib/albumPhotoRows";
 import { effectiveCapturedAt, formatPhotoTime } from "@/lib/photoDates";
 import { getPhotoMeta } from "@/storage/photoStorage";
 import type { AlbumLayout, AlbumPage } from "@/types/album";
@@ -102,24 +103,29 @@ function drawPhotoGrid(
   sans: string,
   frame: AlbumFrame,
 ) {
-  if (images.length === 0 || height < 40) return;
-  const columns = images.length > 1 ? 2 : 1;
-  const rows = Math.ceil(images.length / columns);
+  if (photoIds.length === 0 || height < 40) return;
+  const imageById = new Map(photoIds.map((id, index) => [id, images[index]]));
+  const rows = albumPhotoRows(photoIds, (id) => isLandscapePhoto(getPhotoMeta(id)));
+  const weights = rows.map((ids) => albumRowWeight(ids, (id) => photoAspect(getPhotoMeta(id))));
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0) || 1;
   const gap = 28;
-  const cellW = (width - gap * (columns - 1)) / columns;
-  const cellH = (height - gap * (rows - 1)) / rows;
-  images.forEach((image, index) => {
-    const col = index % columns;
-    const row = Math.floor(index / columns);
-    const left = x + col * (cellW + gap);
-    const top = y + row * (cellH + gap);
-    drawFramedPhoto(ctx, image, left, top, cellW, cellH - 28, fallback, frame);
-    const time = formatPhotoTime(effectiveCapturedAt(getPhotoMeta(photoIds[index])));
-    if (time) {
-      ctx.fillStyle = captionColor;
-      ctx.font = `500 20px ${sans}`;
-      ctx.fillText(time, left, top + cellH - 4);
-    }
+  const caption = 28;
+  const available = height - gap * Math.max(rows.length - 1, 0);
+  let top = y;
+  rows.forEach((ids, index) => {
+    const rowH = (available * weights[index]) / weightSum;
+    const cellW = ids.length > 1 ? (width - gap) / ids.length : width;
+    ids.forEach((id, col) => {
+      const left = x + col * (cellW + (ids.length > 1 ? gap : 0));
+      drawFramedPhoto(ctx, imageById.get(id) ?? null, left, top, cellW, Math.max(rowH - caption, 8), fallback, frame);
+      const time = formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id)));
+      if (time) {
+        ctx.fillStyle = captionColor;
+        ctx.font = `500 20px ${sans}`;
+        ctx.fillText(time, left, top + rowH - 4);
+      }
+    });
+    top += rowH + gap;
   });
 }
 

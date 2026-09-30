@@ -1,4 +1,5 @@
 import { ALBUM_THEMES } from "@/lib/albumTheme";
+import { albumPhotoRows, albumRowWeight, isLandscapePhoto, photoAspect } from "@/lib/albumPhotoRows";
 import { effectiveCapturedAt, formatPhotoTime } from "@/lib/photoDates";
 import { getPhotoMeta } from "@/storage/photoStorage";
 import type { AlbumLayout, AlbumPage } from "@/types/album";
@@ -21,6 +22,8 @@ export default function AlbumPageView({
   const theme = ALBUM_THEMES[layout];
   const frame = theme.frame;
   const kicker = page.kind === "cover" ? "Photobook" : page.kind === "closing" ? "The end" : page.dateLabel;
+  const rows = albumPhotoRows(page.photoIds, (id) => isLandscapePhoto(getPhotoMeta(id)));
+  const weights = rows.map((ids) => albumRowWeight(ids, (id) => photoAspect(getPhotoMeta(id))));
 
   return (
     <article
@@ -50,36 +53,46 @@ export default function AlbumPageView({
             {page.placeLabel}
           </p>
         )}
-        <div className={`mt-[4%] grid min-h-0 flex-1 gap-[4%] ${page.photoIds.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-          {page.photoIds.map((id) => (
-            <figure key={id} className="flex min-h-0 flex-col">
-              <div
-                className="min-h-0 flex-1"
-                style={{
-                  border:
-                    frame.border > 0
-                      ? `calc(${frame.border} * 100cqw / 1080) solid ${frame.borderColor}`
-                      : undefined,
-                  boxShadow: frame.shadowCss,
-                  background: frame.borderColor,
-                }}
-              >
-                {photoUrls[id] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoUrls[id]} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="h-full w-full" style={{ background: theme.line }} />
-                )}
-              </div>
-              {formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id))) && (
-                <figcaption
-                  className="pt-[2%] font-sans"
-                  style={{ color: theme.muted, fontSize: "clamp(10px, 2.3cqw, 12px)" }}
-                >
-                  {formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id)))}
-                </figcaption>
-              )}
-            </figure>
+        <div
+          className="mt-[4%] grid min-h-0 flex-1 gap-[4%]"
+          style={{ gridTemplateRows: weights.map((weight) => `${weight}fr`).join(" ") }}
+        >
+          {rows.map((ids) => (
+            <div
+              key={ids.join("-")}
+              className={`grid min-h-0 gap-[4%] ${ids.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+            >
+              {ids.map((id) => (
+                <figure key={id} className="flex min-h-0 flex-col">
+                  <div
+                    className="min-h-0 flex-1"
+                    style={{
+                      border:
+                        frame.border > 0
+                          ? `calc(${frame.border} * 100cqw / 1080) solid ${frame.borderColor}`
+                          : undefined,
+                      boxShadow: frame.shadowCss,
+                      background: frame.borderColor,
+                    }}
+                  >
+                    {photoUrls[id] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoUrls[id]} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full" style={{ background: theme.line }} />
+                    )}
+                  </div>
+                  {formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id))) && (
+                    <figcaption
+                      className="pt-[2%] font-sans"
+                      style={{ color: theme.muted, fontSize: "clamp(10px, 2.3cqw, 12px)" }}
+                    >
+                      {formatPhotoTime(effectiveCapturedAt(getPhotoMeta(id)))}
+                    </figcaption>
+                  )}
+                </figure>
+              ))}
+            </div>
           ))}
         </div>
         {page.body && (
